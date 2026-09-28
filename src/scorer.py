@@ -1,4 +1,4 @@
-"""Scores a redacted CV against the Kargo rubric, using Gemini 2.5 Flash.
+"""Scores a redacted CV against the Kargo rubric, using Gemini 3.8 Flash.
 
 Falls back to a transparent, clearly-labeled mock scorer when no
 GEMINI_API_KEY is set, so the pipeline can be exercised end to end before
@@ -37,9 +37,10 @@ def score_candidate(redacted_cv: str, role: str) -> dict:
 
 
 def _score_with_gemini(redacted_cv: str, role: str) -> dict:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
     rubric = RUBRIC_PATH.read_text(encoding="utf-8")
     jds = json.loads(JDS_PATH.read_text(encoding="utf-8"))
@@ -52,18 +53,16 @@ def _score_with_gemini(redacted_cv: str, role: str) -> dict:
         + "\n\nReturn ONLY the JSON object described above. No prose outside the JSON."
     )
 
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        system_instruction=system,
-        generation_config=genai.types.GenerationConfig(
+    prompt = f"Score this redacted CV for the {jd['title']} role:\n\n{redacted_cv}"
+    response = client.models.generate_content(
+        model="gemini-3.8-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            system_instruction=system,
             response_mime_type="application/json",
         ),
     )
-
-    prompt = f"Score this redacted CV for the {jd['title']} role:\n\n{redacted_cv}"
-    response = model.generate_content(prompt)
-    raw = response.text
-    return json.loads(raw)
+    return json.loads(response.text)
 
 
 def _mock_score(redacted_cv: str, role: str) -> dict:

@@ -14,7 +14,7 @@ a **GitHub** repository.
 
 | Layer | Tech |
 |---|---|
-| AI scoring | Gemini 2.5 Flash (`google-generativeai`) |
+| AI scoring | Gemini 3.8 Flash (`google-genai`) |
 | Database | Supabase — project `tsgvfaiojilehdhpjrqj` |
 | Email dispatch | Resend (only on explicit `send`) |
 | CV sources | Local file / folder, or GitHub repo path |
@@ -31,7 +31,7 @@ Key variables:
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `GEMINI_API_KEY` | for real scores | AI scoring via Gemini 2.5 Flash |
+| `GEMINI_API_KEY` | for real scores | AI scoring via Gemini 3.8 Flash |
 | `SUPABASE_URL` | no (default set) | Supabase project URL |
 | `SUPABASE_KEY` | no (default set) | Supabase publishable key |
 | `RESEND_API_KEY` | for `send` only | Email dispatch |
@@ -99,7 +99,7 @@ draft already on disk, then flips `email_sent=true` in Supabase.
 |---|---|
 | `src/cv_parser.py` | Reads `.docx`, `.pdf`, `.txt` into plain text |
 | `src/redact.py` | Strips name, email, phone, URLs before the AI sees anything |
-| `src/scorer.py` | Gemini 2.5 Flash call — returns scored JSON against the rubric |
+| `src/scorer.py` | Gemini 3.8 Flash call — returns scored JSON against the rubric |
 | `src/db.py` | Supabase writes: `upsert_candidate`, `mark_email_sent`, `list_candidates` |
 | `src/github_source.py` | Downloads CV files from a GitHub repo path |
 | `src/emailer.py` | Transmits a pre-written draft via Resend |
