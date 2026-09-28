@@ -1,0 +1,37 @@
+{
+  "pm": {
+    "title": "Product Manager",
+    "reports_to": "Arjun Mehta, Founder",
+    "experience": "2-4 years of product management experience, ideally at a company building for the first time rather than maintaining what already exists",
+    "what_success_looks_like_6_months": [
+      "Shipped at least two features customers use without being asked to",
+      "Can tell Arjun without hesitation what the three most important things to build next are and why",
+      "Engineering knows what they're building three sprints out",
+      "Has spent time inside freight forwarding operations, not just over calls"
+    ],
+    "what_we_are_looking_for": [
+      "2-4 years PM experience, ideally building something for the first time",
+      "Comfort operating without structure - no PM handbook, no design system, no sprint template",
+      "Evidence of having shipped things, killed things, and learned from both, preferably in short cycles",
+      "Genuine curiosity about how operations work at ground level in freight forwarding"
+    ]
+  },
+  "spm": {
+    "title": "Senior Product Manager",
+    "reports_to": "Arjun Mehta, Founder",
+    "experience": "5-8 years of product management experience, with clear evidence of owning a product area without a layer of senior PMs above them making the calls",
+    "what_success_looks_like_6_months": [
+      "Owns an integration roadmap that engineering, sales, and Arjun all agree on and trust, unchanged for 6 weeks",
+      "At least one major integration shipped that opened a new customer segment or unblocked a stalled deal",
+      "Has a clear, defensible point of view on what Kargo should build vs configure vs not touch",
+      "Product function has clearer standards for what good PM work looks like"
+    ],
+    "what_we_are_looking_for": [
+      "5-8 years PM experience owning a product area without a senior-PM layer above them",
+      "Experience with platform products, integration layers, or complex existing technical environments",
+      "Proven ability to make calls in ambiguous situations and live with the consequences - no committee approves product decisions at Kargo",
+      "Time at an early-stage company, or evidence of operating where the rules were not written yet",
+      "Familiarity with operations-heavy industries - logistics, supply chain, or adjacent domains - called out as a genuine advantage, not a nice-to-have"
+    ]
+  }
+}

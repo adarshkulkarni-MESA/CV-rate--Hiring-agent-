@@ -1,0 +1,5 @@
+output/
+dashboard.csv
+__pycache__/
+*.pyc
+.env
