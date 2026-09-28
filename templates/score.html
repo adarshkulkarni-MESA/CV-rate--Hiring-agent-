@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Score CV — Kargo Hiring Agent{% endblock %}
+{% block content %}
+<h1>Score a CV</h1>
+<p class="subtitle">Upload a PDF, DOCX, or TXT file. PII is stripped before the model sees anything.</p>
+
+<div class="card">
+  <form method="post" enctype="multipart/form-data" id="score-form">
+    <div class="drop-zone" id="drop-zone">
+      <div style="font-size:32px;">📄</div>
+      <div style="font-size:14px;font-weight:500;margin-top:8px;" id="drop-label">Drop CV here or click to browse</div>
+      <p>PDF · DOCX · TXT</p>
+      <input type="file" name="cv" id="cv-input" accept=".pdf,.docx,.txt" style="display:none;" required />
+    </div>
+
+    <div class="form-row mt-16">
+      <div>
+        <label for="role">Role</label>
+        <select name="role" id="role" required>
+          <option value="pm">Product Manager (PM) — 2-4 yrs</option>
+          <option value="spm">Senior Product Manager (SPM) — 5-8 yrs</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" id="submit-btn">
+        <span id="submit-text">Score Candidate</span>
+        <span id="submit-spinner" style="display:none;"><div class="spinner"></div></span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<div class="card mt-16" style="background:var(--accent-soft);border-color:rgba(91,140,255,0.2);">
+  <p style="color:var(--accent);font-size:12px;line-height:1.6;">
+    <strong>What happens:</strong> the CV is parsed → PII stripped (name, email, phone, URLs) → scored across 4 dimensions by Gemini 3.8 Flash → brief + draft email saved to <code>output/</code> and persisted to Supabase. Nothing is sent until you explicitly hit <em>Send Email</em> on the candidate page.
+  </p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const dz = document.getElementById('drop-zone');
+const input = document.getElementById('cv-input');
+const label = document.getElementById('drop-label');
+const form = document.getElementById('score-form');
+const btn = document.getElementById('submit-btn');
+const btnText = document.getElementById('submit-text');
+const spinner = document.getElementById('submit-spinner');
+
+dz.addEventListener('click', () => input.click());
+input.addEventListener('change', () => {
+  if (input.files[0]) label.textContent = input.files[0].name;
+});
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) { input.files = e.dataTransfer.files; label.textContent = f.name; }
+});
+
+form.addEventListener('submit', () => {
+  btnText.textContent = 'Scoring…';
+  spinner.style.display = 'inline-block';
+  btn.disabled = true;
+});
+</script>
+{% endblock %}

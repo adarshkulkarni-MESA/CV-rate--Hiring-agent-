@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Kargo Hiring Agent{% endblock %}
+{% block content %}
+<div class="flex items-center gap-10" style="margin-bottom:4px;">
+  <h1>Candidate Dashboard</h1>
+  <div class="ml-auto">
+    <a href="/score" class="btn btn-primary">+ Score New CV</a>
+  </div>
+</div>
+<p class="subtitle">{{ candidates|length }} candidate{% if candidates|length != 1 %}s{% endif %} scored{% if role_filter %} for {{ role_filter|upper }}{% endif %}</p>
+
+{% if candidates %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table>
+    <thead>
+      <tr>
+        <th>Candidate ID</th>
+        <th>Role</th>
+        <th>Score</th>
+        <th>Ops</th>
+        <th>Ownership</th>
+        <th>Role-fit</th>
+        <th>Comms</th>
+        <th>Recommendation</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in candidates %}
+      <tr>
+        <td>
+          <a href="/candidate/{{ c.candidate_id }}" class="candidate-link font-mono">{{ c.candidate_id }}</a>
+          {% if c.email_sent %}<span class="tag-sent">SENT</span>{% endif %}
+        </td>
+        <td><span class="badge badge-{{ c.role }}">{{ c.role|upper }}</span></td>
+        <td>
+          <div class="score-row">
+            <span class="score-num" style="font-size:15px;">{{ c.total_score }}</span>
+            <div class="score-bar-bg">
+              <div class="score-bar-fill" style="width:{{ (c.total_score/10*100)|int }}%;"></div>
+            </div>
+          </div>
+        </td>
+        <td class="text-muted">{{ c.dim1_ops_exposure }}</td>
+        <td class="text-muted">{{ c.dim2_ownership }}</td>
+        <td class="text-muted">{{ c.dim3_role_fit }}</td>
+        <td class="text-muted">{{ c.dim4_communication }}</td>
+        <td><span class="badge badge-{{ c.recommendation }}">{{ c.recommendation }}</span></td>
+        <td>
+          <div class="flex gap-10">
+            <a href="/candidate/{{ c.candidate_id }}" class="btn btn-secondary btn-sm">View</a>
+            {% if not c.email_sent %}
+            <a href="/candidate/{{ c.candidate_id }}#email" class="btn btn-sm" style="background:var(--green-soft);color:var(--green);border:1px solid rgba(52,211,153,0.25);">Email</a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-16 flex gap-10">
+  <a href="/" class="btn btn-secondary btn-sm {% if not role_filter %}active{% endif %}" style="{% if not role_filter %}background:var(--accent-soft);color:var(--accent);border-color:var(--accent);{% endif %}">All</a>
+  <a href="/?role=pm" class="btn btn-secondary btn-sm" style="{% if role_filter == 'pm' %}background:var(--accent-soft);color:var(--accent);border-color:var(--accent);{% endif %}">PM</a>
+  <a href="/?role=spm" class="btn btn-secondary btn-sm" style="{% if role_filter == 'spm' %}background:var(--accent-soft);color:var(--accent);border-color:var(--accent);{% endif %}">SPM</a>
+</div>
+
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">📋</div>
+    <h3 style="font-size:16px;margin-bottom:8px;">No candidates yet</h3>
+    <p class="text-muted" style="margin-bottom:20px;">Upload a CV to score your first candidate.</p>
+    <a href="/score" class="btn btn-primary">+ Score a CV</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

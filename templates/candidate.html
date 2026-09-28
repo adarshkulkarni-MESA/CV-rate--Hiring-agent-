@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ c.candidate_id }} — Kargo Hiring Agent{% endblock %}
+{% block content %}
+<div class="flex items-center gap-10" style="margin-bottom:4px;">
+  <a href="/" class="btn btn-secondary btn-sm">← Back</a>
+  <h1 style="font-family:monospace;font-size:20px;">{{ c.candidate_id }}</h1>
+  <span class="badge badge-{{ c.role }}">{{ c.role|upper }}</span>
+  <span class="badge badge-{{ c.recommendation }}">{{ c.recommendation }}</span>
+  {% if c.email_sent %}<span class="tag-sent" style="font-size:12px;padding:3px 9px;">Email Sent</span>{% endif %}
+  <div class="ml-auto flex gap-10">
+    {% if not c.email_sent %}
+    <button class="btn btn-success" onclick="openModal()">Send Email</button>
+    {% else %}
+    <button class="btn btn-secondary" disabled>Email Sent ✓</button>
+    {% endif %}
+  </div>
+</div>
+<p class="subtitle">Source: <code class="font-mono text-sm">{{ c.source_file }}</code></p>
+
+<!-- SCORE OVERVIEW -->
+<div class="card">
+  <div class="section-title">Overall Score</div>
+  <div class="score-row" style="margin-bottom:16px;">
+    <span class="score-num" style="font-size:32px;color:{% if c.recommendation=='interview' %}var(--green){% else %}var(--red){% endif %};">{{ c.total_score }}</span>
+    <div style="color:var(--text-dim);font-size:13px;margin-left:4px;">/10</div>
+    <div class="score-bar-bg" style="height:8px;">
+      <div class="score-bar-fill" style="width:{{ (c.total_score/10*100)|int }}%;background:{% if c.recommendation=='interview' %}var(--green){% else %}var(--red){% endif %};"></div>
+    </div>
+  </div>
+
+  <div class="dim-grid">
+    <div class="dim-card">
+      <div class="dim-label">Ops Exposure <span style="color:var(--muted);font-weight:400;">(40%)</span></div>
+      <div class="dim-score" style="color:var(--accent);">{{ c.dim1_ops_exposure }}</div>
+      <div class="dim-evidence">{{ c.dim1_evidence }}</div>
+    </div>
+    <div class="dim-card">
+      <div class="dim-label">Ownership <span style="color:var(--muted);font-weight:400;">(25%)</span></div>
+      <div class="dim-score" style="color:var(--accent);">{{ c.dim2_ownership }}</div>
+      <div class="dim-evidence">{{ c.dim2_evidence }}</div>
+    </div>
+    <div class="dim-card">
+      <div class="dim-label">Role-fit <span style="color:var(--muted);font-weight:400;">(20%)</span></div>
+      <div class="dim-score" style="color:var(--accent);">{{ c.dim3_role_fit }}</div>
+      <div class="dim-evidence">{{ c.dim3_evidence }}</div>
+    </div>
+    <div class="dim-card">
+      <div class="dim-label">Communication <span style="color:var(--muted);font-weight:400;">(15%)</span></div>
+      <div class="dim-score" style="color:var(--accent);">{{ c.dim4_communication }}</div>
+      <div class="dim-evidence">{{ c.dim4_evidence }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- INTERVIEW BRIEF -->
+<div class="card mt-16">
+  <div class="section-title">Interview Brief</div>
+  <div class="prose">{{ brief_html | safe }}</div>
+</div>
+
+<!-- DRAFT EMAIL -->
+<div class="card mt-16" id="email">
+  <div class="flex items-center gap-10" style="margin-bottom:12px;">
+    <div class="section-title" style="margin-bottom:0;">Draft Email</div>
+    {% if not c.email_sent %}
+    <div class="ml-auto"><button class="btn btn-success btn-sm" onclick="openModal()">Send This Email</button></div>
+    {% endif %}
+  </div>
+  <div class="dim-card" style="margin-bottom:12px;">
+    <div class="dim-label">Subject</div>
+    <div style="font-size:14px;font-weight:500;margin-top:4px;">{{ c.email_subject }}</div>
+  </div>
+  <div class="prose"><pre>{{ c.email_body }}</pre></div>
+</div>
+
+{% if not c.email_sent %}
+<!-- CONFIRM MODAL -->
+<div class="modal-overlay" id="send-modal">
+  <div class="modal">
+    <h3>Send this email?</h3>
+    <p>This will dispatch the draft email for <strong>{{ c.candidate_id }}</strong> via Resend. This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <form method="post" action="/candidate/{{ c.candidate_id }}/send" style="display:inline;">
+        <button type="submit" class="btn btn-success">Yes, send it</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openModal() { document.getElementById('send-modal').classList.add('open'); }
+function closeModal() { document.getElementById('send-modal').classList.remove('open'); }
+document.getElementById('send-modal')?.addEventListener('click', e => { if(e.target === e.currentTarget) closeModal(); });
+
+// auto-scroll to #email if hash present
+if (location.hash === '#email') document.getElementById('email')?.scrollIntoView({behavior:'smooth'});
+</script>
+{% endblock %}
