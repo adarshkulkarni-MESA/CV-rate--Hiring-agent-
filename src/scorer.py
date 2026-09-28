@@ -1,4 +1,4 @@
-"""Scores a redacted CV against the Kargo rubric, using Gemini.
+"""Scores a redacted CV against the Kargo rubric, using Gemini 2.5 Flash.
 
 Falls back to a transparent, clearly-labeled mock scorer when no
 GEMINI_API_KEY is set, so the pipeline can be exercised end to end before
@@ -39,8 +39,7 @@ def score_candidate(redacted_cv: str, role: str) -> dict:
 def _score_with_gemini(redacted_cv: str, role: str) -> dict:
     import google.generativeai as genai
 
-    api_key = os.environ["GEMINI_API_KEY"]
-    genai.configure(api_key=api_key)
+    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
     rubric = RUBRIC_PATH.read_text(encoding="utf-8")
     jds = json.loads(JDS_PATH.read_text(encoding="utf-8"))
@@ -54,7 +53,7 @@ def _score_with_gemini(redacted_cv: str, role: str) -> dict:
     )
 
     model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
+        model_name="gemini-2.5-flash",
         system_instruction=system,
         generation_config=genai.types.GenerationConfig(
             response_mime_type="application/json",
@@ -77,8 +76,8 @@ def _mock_score(redacted_cv: str, role: str) -> dict:
     own_hits = sum(1 for k in OWNERSHIP_KEYWORDS if k in text)
     dim2 = min(10, own_hits * 2.0)
 
-    dim3 = 6.0  # neutral placeholder — real scoring needs the LLM to read the JD against experience
-    dim4 = 6.0 if len(text) > 800 else 3.0  # crude proxy for detail/specificity
+    dim3 = 6.0
+    dim4 = 6.0 if len(text) > 800 else 3.0
 
     total = round(0.40 * dim1 + 0.25 * dim2 + 0.20 * dim3 + 0.15 * dim4, 1)
     recommendation = "interview" if total >= INTERVIEW_THRESHOLD else "reject"

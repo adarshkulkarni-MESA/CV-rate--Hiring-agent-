@@ -1,9 +1,10 @@
-"""CLI: score, score-batch, send.
+"""CLI: score, score-batch, score-from-github, send, list.
 
 Trigger -> Input -> Context -> Processing -> AI -> Output, as one command per
-CV (score) or one command per folder (score-batch), writing into a shared
-dashboard. `send` is the one command that talks to Resend, and it sends only
-a draft that already exists on disk for that candidate.
+CV (score) or one command per folder/GitHub path (score-batch / score-from-github),
+writing into a shared dashboard and Supabase. `send` is the one command that
+talks to Resend, and it sends only a draft that already exists on disk for
+that candidate.
 """
 import argparse
 import csv
@@ -18,11 +19,12 @@ from cv_parser import parse_cv
 from redact import redact, EMAIL_RE
 from scorer import score_candidate
 from emailer import send_email
+from db import upsert_candidate, mark_email_sent, list_candidates
 
 BASE = Path(__file__).parent.parent
 OUTPUT_DIR = BASE / "output"
 DASHBOARD_CSV = BASE / "dashboard.csv"
-CONTACTS_JSON = BASE / "output" / ".contacts.json"  # real emails, kept local, never sent to the AI
+CONTACTS_JSON = BASE / "output" / ".contacts.json"
 
 DASHBOARD_FIELDS = [
     "candidate_id", "role", "total_score", "recommendation",
@@ -35,8 +37,6 @@ def cmd_score(cv_path: str, role: str) -> None:
     OUTPUT_DIR.mkdir(exist_ok=True)
     raw_text = parse_cv(cv_path)
 
-    # keep the real contact email locally (for sending later) BEFORE redaction —
-    # this never travels to the scorer/AI step.
     contact_match = EMAIL_RE.search(raw_text)
     real_email = contact_match.group(0) if contact_match else None
 
@@ -46,6 +46,7 @@ def cmd_score(cv_path: str, role: str) -> None:
     _save_contact(candidate_id, real_email)
     _write_outputs(candidate_id, role, cv_path, result)
     _append_dashboard_row(candidate_id, role, cv_path, result)
+    upsert_candidate(candidate_id, role, cv_path, result)
 
     print(f"[{candidate_id}] {role.upper()} score={result['total_score']} "
           f"-> {result['recommendation']}  (draft in output/{candidate_id}_email.md)")
@@ -62,6 +63,21 @@ def cmd_score_batch(directory: str, role: str) -> None:
             cmd_score(str(f), role)
         except Exception as e:
             print(f"[skip] {f.name}: {e}")
+
+
+def cmd_score_from_github(repo: str, path: str, role: str, ref: str) -> None:
+    """Fetch CVs from a GitHub repo path and score them all."""
+    from github_source import fetch_cvs_from_github
+
+    print(f"[github] fetching CVs from {repo}/{path} at ref={ref} ...")
+    local_files = fetch_cvs_from_github(repo, path, ref)
+    if not local_files:
+        return
+    for f in local_files:
+        try:
+            cmd_score(f, role)
+        except Exception as e:
+            print(f"[skip] {Path(f).name}: {e}")
 
 
 def cmd_send(candidate_id: str) -> None:
@@ -86,7 +102,24 @@ def cmd_send(candidate_id: str) -> None:
         return
 
     result = send_email(to_address, subject, body)
+    mark_email_sent(candidate_id)
     print(f"Sent. Resend id: {result.get('id')}")
+
+
+def cmd_list(role: str | None = None) -> None:
+    """Print the dashboard from Supabase, newest first."""
+    rows = list_candidates(role)
+    if not rows:
+        print("No candidates scored yet.")
+        return
+    header = f"{'ID':<16}  {'Role':<4}  {'Score':<6}  {'Rec':<9}  {'Sent':<5}  Source"
+    print(header)
+    print("-" * len(header))
+    for r in rows:
+        sent = "yes" if r.get("email_sent") else "no"
+        src = Path(r.get("source_file") or "").name or "—"
+        print(f"{r['candidate_id']:<16}  {r['role']:<4}  {r['total_score']:<6}  "
+              f"{r['recommendation']:<9}  {sent:<5}  {src}")
 
 
 def _write_outputs(candidate_id: str, role: str, source_file: str, result: dict) -> None:
@@ -172,16 +205,29 @@ def main() -> None:
     p_batch.add_argument("--dir", required=True)
     p_batch.add_argument("--role", required=True, choices=["pm", "spm"])
 
+    p_gh = sub.add_parser("score-from-github", help="Fetch CVs from a GitHub repo and score them")
+    p_gh.add_argument("--repo", required=True, help="owner/repo")
+    p_gh.add_argument("--path", default="", help="Directory inside the repo (default: root)")
+    p_gh.add_argument("--role", required=True, choices=["pm", "spm"])
+    p_gh.add_argument("--ref", default="main", help="Branch, tag, or commit (default: main)")
+
     p_send = sub.add_parser("send", help="Send the drafted email for one candidate")
     p_send.add_argument("--candidate-id", required=True)
+
+    p_list = sub.add_parser("list", help="Print all scored candidates from Supabase")
+    p_list.add_argument("--role", choices=["pm", "spm"], default=None)
 
     args = parser.parse_args()
     if args.command == "score":
         cmd_score(args.cv, args.role)
     elif args.command == "score-batch":
         cmd_score_batch(args.dir, args.role)
+    elif args.command == "score-from-github":
+        cmd_score_from_github(args.repo, args.path, args.role, args.ref)
     elif args.command == "send":
         cmd_send(args.candidate_id)
+    elif args.command == "list":
+        cmd_list(args.role)
 
 
 if __name__ == "__main__":
