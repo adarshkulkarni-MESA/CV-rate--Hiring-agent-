@@ -65,10 +65,10 @@ python3 src/pipeline.py score-batch --dir path/to/applications/ --role pm
 ### Fetch CVs from GitHub and score them
 
 ```bash
-python3 src/pipeline.py score-from-github \\
-  --repo owner/repo \\
-  --path applications/pm \\
-  --role pm \\
+python3 src/pipeline.py score-from-github \
+  --repo owner/repo \
+  --path applications/pm \
+  --role pm \
   --ref main        # branch, tag, or commit (default: main)
 ```
 

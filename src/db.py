@@ -7,13 +7,8 @@ so the pipeline still works with CSV-only output during local dev.
 """
 import os
 
-SUPABASE_URL = os.environ.get(
-    "SUPABASE_URL", "https://tsgvfaiojilehdhpjrqj.supabase.co"
-)
-SUPABASE_KEY = os.environ.get(
-    "SUPABASE_KEY",
-    "sb_publishable_R5AfVhY3BRfN-Wf0VXJlKA_nyI4_bQn",
-)
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 
 def _client():
