@@ -174,14 +174,43 @@ def api_send(cid: str):
     subject = data.get("subject") or c.get("email_subject", "")
     body = data.get("body") or c.get("email_body", "")
     to_addr = data.get("to") or c.get("candidate_email") or ""
+    if not to_addr:
+        return jsonify({"error": "No recipient email address provided"}), 400
     try:
         from emailer import send_email as _send
-        _send(to=to_addr, subject=subject, body=body,
-              resend_key=resend_key, from_email=from_email)
+        _send(to_address=to_addr, subject=subject, body_markdown=body)
         mark_email_sent(cid)
         return jsonify({"ok": True})
     except Exception as exc:
         return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/score/bulk", methods=["POST"])
+def api_score_bulk():
+    """Score multiple CVs in one request. Returns list of results."""
+    files = request.files.getlist("cv")
+    role = request.form.get("role", "pm").lower()
+    if not files:
+        return jsonify({"error": "No files provided"}), 400
+    results = []
+    for cv_file in files:
+        if not cv_file or not cv_file.filename:
+            continue
+        ext = Path(cv_file.filename).suffix.lower()
+        if ext not in ALLOWED_EXT:
+            results.append({"filename": cv_file.filename, "error": f"Unsupported file type '{ext}'"})
+            continue
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+            cv_file.save(tmp.name)
+            tmp_path = tmp.name
+        try:
+            candidate_id = _score_and_persist(tmp_path, role)
+            results.append({"filename": cv_file.filename, "candidate_id": candidate_id, "ok": True})
+        except Exception as exc:
+            results.append({"filename": cv_file.filename, "error": str(exc)})
+        finally:
+            os.unlink(tmp_path)
+    return jsonify(results)
 
 
 @app.route("/score", methods=["GET", "POST"])
@@ -252,11 +281,9 @@ def send_email(cid: str):
         from emailer import send_email as _send
         candidate_email = c.get("candidate_email") or ""
         _send(
-            to=candidate_email,
+            to_address=candidate_email,
             subject=c.get("email_subject", ""),
-            body=c.get("email_body", ""),
-            resend_key=resend_key,
-            from_email=from_email,
+            body_markdown=c.get("email_body", ""),
         )
         mark_email_sent(cid)
         flash("Email sent successfully.", "success")

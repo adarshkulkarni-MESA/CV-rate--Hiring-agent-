@@ -448,9 +448,9 @@ h1,h2,.card-title,.report-title h1,.nav-logo { font-family: 'Lora', Georgia, ser
     </div>
     <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
       <div class="drop-icon">📄</div>
-      <div class="drop-title">Drop your CV here</div>
-      <div class="drop-sub">PDF, DOCX or TXT · max 5 MB</div>
-      <input type="file" id="file-input" accept=".pdf,.docx,.txt" hidden>
+      <div class="drop-title">Drop CVs here</div>
+      <div class="drop-sub">PDF, DOCX or TXT · select one or multiple files</div>
+      <input type="file" id="file-input" accept=".pdf,.docx,.txt" multiple hidden>
       <div class="drop-file-info" id="drop-file-info">
         <span id="drop-file-name">file.pdf</span>
         <span style="color:var(--teal)">✓ Ready</span>
@@ -806,11 +806,21 @@ dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classL
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', e => {
   e.preventDefault(); dropZone.classList.remove('dragover');
-  const f = e.dataTransfer.files[0];
-  if (f) { fileInput._file = f; showFile(f); }
+  if (e.dataTransfer.files.length) showFiles(Array.from(e.dataTransfer.files));
 });
-fileInput.addEventListener('change', e => { if (e.target.files[0]) showFile(e.target.files[0]); });
-function showFile(f) { fileNameEl.textContent = f.name; fileInfo.classList.add('show'); }
+fileInput.addEventListener('change', e => { if (e.target.files.length) showFiles(Array.from(e.target.files)); });
+let selectedFiles = [];
+function showFiles(files) {
+  selectedFiles = files;
+  if (files.length === 1) {
+    fileNameEl.textContent = files[0].name;
+  } else {
+    fileNameEl.textContent = files.length + ' files selected';
+  }
+  fileInfo.classList.add('show');
+  document.getElementById('btn-analyse').textContent = files.length > 1
+    ? 'Analyse ' + files.length + ' CVs →' : 'Analyse CV →';
+}
 
 document.querySelectorAll('.role-chip').forEach(c => {
   c.addEventListener('click', () => {
@@ -821,8 +831,8 @@ document.querySelectorAll('.role-chip').forEach(c => {
 
 let stageTimer = null;
 function startLoading() {
-  const f = fileInput.files[0] || fileInput._file;
-  if (!f) { alert('Please select a CV file first.'); return; }
+  const files = selectedFiles.length ? selectedFiles : Array.from(fileInput.files);
+  if (!files.length) { alert('Please select a CV file first.'); return; }
   const selectedRole = document.querySelector('.role-chip.selected');
   const role = selectedRole ? selectedRole.dataset.role : 'pm';
 
@@ -844,28 +854,48 @@ function startLoading() {
     }
   }, 5000);
 
-  const form = new FormData();
-  form.append('cv', f);
-  form.append('role', role);
-
-  fetch('/api/score', { method: 'POST', body: form })
-    .then(r => r.json())
-    .then(data => {
-      clearInterval(stageTimer);
-      stages.forEach(s => {
-        s.classList.remove('active'); s.classList.add('done');
-        const si = s.querySelector('.stage-icon'); if (si) si.textContent = '✓';
-      });
-      bar.style.width = '100%';
-      if (data.error) { alert('Scoring failed: ' + data.error); showView('upload'); return; }
-      CANDIDATES = CANDIDATES.filter(c => c.id !== data.candidate_id);
-      setTimeout(() => showReport(data.candidate_id), 600);
-    })
-    .catch(err => {
-      clearInterval(stageTimer);
-      alert('Scoring failed: ' + err.message);
-      showView('upload');
-    });
+  if (files.length === 1) {
+    // Single file — navigate to report
+    const form = new FormData();
+    form.append('cv', files[0]);
+    form.append('role', role);
+    fetch('/api/score', { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(data => {
+        clearInterval(stageTimer);
+        stages.forEach(s => { s.classList.remove('active'); s.classList.add('done'); const si = s.querySelector('.stage-icon'); if (si) si.textContent = '✓'; });
+        bar.style.width = '100%';
+        if (data.error) { alert('Scoring failed: ' + data.error); showView('upload'); return; }
+        CANDIDATES = CANDIDATES.filter(c => c.id !== data.candidate_id);
+        setTimeout(() => showReport(data.candidate_id), 600);
+      })
+      .catch(err => { clearInterval(stageTimer); alert('Scoring failed: ' + err.message); showView('upload'); });
+  } else {
+    // Multiple files — bulk API, then go to dashboard
+    const form = new FormData();
+    files.forEach(f => form.append('cv', f));
+    form.append('role', role);
+    fetch('/api/score/bulk', { method: 'POST', body: form })
+      .then(r => r.json())
+      .then(results => {
+        clearInterval(stageTimer);
+        stages.forEach(s => { s.classList.remove('active'); s.classList.add('done'); const si = s.querySelector('.stage-icon'); if (si) si.textContent = '✓'; });
+        bar.style.width = '100%';
+        const ok = results.filter(r => r.ok).length;
+        const errs = results.filter(r => r.error);
+        selectedFiles = [];
+        fileInput.value = '';
+        document.getElementById('drop-file-info').classList.remove('show');
+        document.getElementById('btn-analyse').textContent = 'Analyse CV →';
+        setTimeout(() => {
+          fetchCandidates(() => {
+            showView('dashboard');
+            if (errs.length) alert(ok + ' CV(s) scored. ' + errs.length + ' failed:\n' + errs.map(e => e.filename + ': ' + e.error).join('\n'));
+          });
+        }, 600);
+      })
+      .catch(err => { clearInterval(stageTimer); alert('Bulk scoring failed: ' + err.message); showView('upload'); });
+  }
 }
 
 /* ── Report ─────────────────────────────────────────────────────────── */
