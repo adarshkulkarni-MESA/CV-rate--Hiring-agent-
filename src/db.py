@@ -40,6 +40,30 @@ def upsert_candidate(candidate_id: str, role: str, source_file: str, result: dic
         _client().table("candidates").upsert(row, on_conflict="candidate_id").execute()
     except Exception as exc:
         print(f"[db] warning: could not write to Supabase — {exc}")
+        _upsert_csv(row)
+
+
+def _upsert_csv(row: dict) -> None:
+    """Write a candidate row to dashboard.csv as a fallback when Supabase is unavailable."""
+    import csv
+    from pathlib import Path
+
+    csv_path = Path(__file__).parent.parent / "dashboard.csv"
+    fieldnames = [
+        "candidate_id", "role", "total_score", "recommendation",
+        "dim1_ops_exposure", "dim2_ownership", "dim3_role_fit", "dim4_communication",
+        "dim1_evidence", "dim2_evidence", "dim3_evidence", "dim4_evidence",
+        "interview_brief", "email_subject", "email_body", "source_file",
+    ]
+    existing = []
+    if csv_path.exists():
+        with open(csv_path, newline="", encoding="utf-8") as f:
+            existing = [r for r in csv.DictReader(f) if r.get("candidate_id") != row["candidate_id"]]
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(existing)
+        writer.writerow({k: row.get(k, "") for k in fieldnames})
 
 
 def mark_email_sent(candidate_id: str) -> None:
