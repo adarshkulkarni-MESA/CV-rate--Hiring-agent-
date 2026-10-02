@@ -5,7 +5,7 @@ import tempfile
 import re
 from pathlib import Path
 
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -106,9 +106,82 @@ def _score_and_persist(cv_path: str, role: str):
 
 @app.route("/")
 def dashboard():
-    role_filter = request.args.get("role", "").lower() or None
-    candidates = list_candidates(role=role_filter)
-    return render_template("dashboard.html", candidates=candidates, role_filter=role_filter)
+    return render_template("index.html")
+
+
+# ── JSON API ─────────────────────────────────────────────────────────────────
+
+def _float(val):
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+@app.route("/api/candidates")
+def api_candidates():
+    role = request.args.get("role", "").lower() or None
+    rows = list_candidates(role=role)
+    for row in rows:
+        for k in ("total_score", "dim1_ops_exposure", "dim2_ownership",
+                  "dim3_role_fit", "dim4_communication"):
+            row[k] = _float(row.get(k))
+    return jsonify(rows)
+
+
+@app.route("/api/candidate/<cid>")
+def api_candidate(cid: str):
+    row = get_candidate(cid)
+    if row is None:
+        return jsonify({"error": "Not found"}), 404
+    for k in ("total_score", "dim1_ops_exposure", "dim2_ownership",
+              "dim3_role_fit", "dim4_communication"):
+        row[k] = _float(row.get(k))
+    return jsonify(row)
+
+
+@app.route("/api/score", methods=["POST"])
+def api_score():
+    cv_file = request.files.get("cv")
+    role = request.form.get("role", "pm").lower()
+    if not cv_file or not cv_file.filename:
+        return jsonify({"error": "No file provided"}), 400
+    ext = Path(cv_file.filename).suffix.lower()
+    if ext not in ALLOWED_EXT:
+        return jsonify({"error": f"Unsupported file type '{ext}'"}), 400
+    with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
+        cv_file.save(tmp.name)
+        tmp_path = tmp.name
+    try:
+        candidate_id = _score_and_persist(tmp_path, role)
+        return jsonify({"candidate_id": candidate_id, "ok": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.route("/api/send/<cid>", methods=["POST"])
+def api_send(cid: str):
+    c = get_candidate(cid)
+    if c is None:
+        return jsonify({"error": "Candidate not found"}), 404
+    resend_key = os.environ.get("RESEND_API_KEY")
+    from_email = os.environ.get("KARGO_FROM_EMAIL")
+    if not resend_key or not from_email:
+        return jsonify({"error": "RESEND_API_KEY / KARGO_FROM_EMAIL not configured"}), 400
+    data = request.get_json(silent=True) or {}
+    subject = data.get("subject") or c.get("email_subject", "")
+    body = data.get("body") or c.get("email_body", "")
+    to_addr = data.get("to") or c.get("candidate_email") or ""
+    try:
+        from emailer import send_email as _send
+        _send(to=to_addr, subject=subject, body=body,
+              resend_key=resend_key, from_email=from_email)
+        mark_email_sent(cid)
+        return jsonify({"ok": True})
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.route("/score", methods=["GET", "POST"])
