@@ -48,7 +48,7 @@ def _upsert_csv(row: dict) -> None:
     import csv
     from pathlib import Path
 
-    csv_path = Path(__file__).parent.parent / "dashboard.csv"
+    csv_path = Path(os.environ.get("KARGO_OUTPUT_DIR", "/tmp/kargo_output")) / "dashboard.csv"
     fieldnames = [
         "candidate_id", "role", "total_score", "recommendation",
         "dim1_ops_exposure", "dim2_ownership", "dim3_role_fit", "dim4_communication",
@@ -106,7 +106,7 @@ def _enrich_from_output(row: dict, candidate_id: str) -> None:
     """Add email subject/body/evidence from output files if available."""
     from pathlib import Path
 
-    out = Path(__file__).parent.parent / "output"
+    out = Path(os.environ.get("KARGO_OUTPUT_DIR", "/tmp/kargo_output"))
     email_path = out / f"{candidate_id}_email.md"
     if email_path.exists():
         text = email_path.read_text(encoding="utf-8")
@@ -136,7 +136,7 @@ def _list_from_csv(role: str | None = None) -> list[dict]:
     import csv
     from pathlib import Path
 
-    csv_path = Path(__file__).parent.parent / "dashboard.csv"
+    csv_path = Path(os.environ.get("KARGO_OUTPUT_DIR", "/tmp/kargo_output")) / "dashboard.csv"
     if not csv_path.exists():
         return []
     rows = []

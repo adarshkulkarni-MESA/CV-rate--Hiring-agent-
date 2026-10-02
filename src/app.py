@@ -17,7 +17,7 @@ from db import upsert_candidate, mark_email_sent, list_candidates, get_candidate
 app = Flask(__name__, template_folder="../templates", static_folder="../static")
 app.secret_key = os.environ.get("FLASK_SECRET", "kargo-dev-secret-2024")
 
-OUTPUT_DIR = Path(__file__).parent.parent / "output"
+OUTPUT_DIR = Path(os.environ.get("KARGO_OUTPUT_DIR", "/tmp/kargo_output"))
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 ALLOWED_EXT = {".pdf", ".docx", ".txt"}
