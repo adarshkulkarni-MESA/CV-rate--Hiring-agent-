@@ -39,5 +39,10 @@ def send_email(to_address: str, subject: str, body_markdown: str) -> dict:
         },
         timeout=15,
     )
-    resp.raise_for_status()
+    if not resp.ok:
+        try:
+            detail = resp.json()
+        except Exception:
+            detail = resp.text
+        raise RuntimeError(f"Resend {resp.status_code}: {detail}")
     return resp.json()
